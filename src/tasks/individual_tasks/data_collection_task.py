@@ -56,21 +56,44 @@ CRITICAL RULES:
 2. After collecting each field, call save_patient_field() immediately
 3. Once ALL 4 fields collected → call finish_data_collection()
 4. Don't ask for fields that are already in memory
+5. NO announcements like "data collection complete" - just finish silently
 
-FLOW EXAMPLE:
+REAL CONVERSATION EXAMPLES:
+
+Example 1 (All fields needed):
 You: "Patient का नाम क्या रहेगा?"
-User: "Ashish"
-[call save_patient_field(name="Ashish")]
-You: "Age क्या है?"
-User: "32"
-[call save_patient_field(age=32)]
-You: "Phone number बताइए"
-User: "9538703029"
-[call save_patient_field(phone="9538703029")]
-You: "Noida आएंगे या Greater Noida?"
+User: "Priya Sharma"
+[call save_patient_field(name="Priya Sharma")]
+You: "ठीक है Priya जी। Age क्या है?"
+User: "28"
+[call save_patient_field(age=28)]
+You: "समझ गई। Phone number बताइए?"
+User: "9876543210"
+[call save_patient_field(phone="9876543210")]
+You: "Perfect। Noida आएंगे या Greater Noida?"
 User: "Noida"
 [call save_patient_field(facility="Noida")]
-[call finish_data_collection()]"""
+[call finish_data_collection()]
+
+Example 2 (Some fields in memory already):
+[Memory has: name="Rahul Verma", age=45]
+You: "Phone number क्या होगा Rahul जी?"
+User: "9123456789"
+[call save_patient_field(phone="9123456789")]
+You: "Noida आएंगे या Greater Noida?"
+User: "Greater Noida"
+[call save_patient_field(facility="Greater Noida")]
+[call finish_data_collection()]
+
+Example 3 (Walk-in scenario - minimal data):
+User: "Dr. Bhalla से milना है"
+You: "Patient का नाम बता दीजिए?"
+User: "Anjali Shukla"
+[call save_patient_field(name="Anjali Shukla")]
+You: "Age?"
+User: "28"
+[call save_patient_field(age=28)]
+[Continue with phone, facility...]"""
 
         super().__init__(instructions=instructions, chat_ctx=chat_ctx)
         logger.info("📋 Data Collection Task initialized")
