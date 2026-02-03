@@ -10,6 +10,7 @@ from livekit.agents.voice import AgentTask
 from livekit.agents.llm import function_tool, ChatContext
 
 from core.memory import LivingMemory
+from config.config_loader import config
 
 logger = logging.getLogger("felix-hospital.tasks.data_collection")
 
@@ -34,69 +35,14 @@ class DataCollectionTask(AgentTask[PatientData]):
     def __init__(self, memory: LivingMemory, chat_ctx: ChatContext):
         self.memory = memory
 
-        instructions = f"""You collect patient info for Felix Hospital. FEMALE voice.
-
-MEMORY (check BEFORE asking - skip if already collected):
-{self.memory.to_context_block()}
-
-YOUR QUESTIONS (natural style, ONE at a time):
-1. "Patient का नाम क्या रहेगा?" (if name not in memory)
-2. "Age क्या है?" (if age not in memory)
-3. "Phone number क्या होगा?" (if phone not in memory)
-4. "Noida आएंगे या Greater Noida?" (if facility not in memory)
-
-LANGUAGE:
-- Female voice: "समझ गई", "ठीक है", "अच्छा"
-- Natural Hindi-English mix
-- ONE question at a time
-- Warm, conversational tone
-
-CRITICAL RULES:
-1. Check memory FIRST - skip fields already collected
-2. After collecting each field, call save_patient_field() immediately
-3. Once ALL 4 fields collected → call finish_data_collection()
-4. Don't ask for fields that are already in memory
-5. NO announcements like "data collection complete" - just finish silently
-
-REAL CONVERSATION EXAMPLES:
-
-Example 1 (All fields needed):
-You: "Patient का नाम क्या रहेगा?"
-User: "Priya Sharma"
-[call save_patient_field(name="Priya Sharma")]
-You: "ठीक है Priya जी। Age क्या है?"
-User: "28"
-[call save_patient_field(age=28)]
-You: "समझ गई। Phone number बताइए?"
-User: "9876543210"
-[call save_patient_field(phone="9876543210")]
-You: "Perfect। Noida आएंगे या Greater Noida?"
-User: "Noida"
-[call save_patient_field(facility="Noida")]
-[call finish_data_collection()]
-
-Example 2 (Some fields in memory already):
-[Memory has: name="Rahul Verma", age=45]
-You: "Phone number क्या होगा Rahul जी?"
-User: "9123456789"
-[call save_patient_field(phone="9123456789")]
-You: "Noida आएंगे या Greater Noida?"
-User: "Greater Noida"
-[call save_patient_field(facility="Greater Noida")]
-[call finish_data_collection()]
-
-Example 3 (Walk-in scenario - minimal data):
-User: "Dr. Bhalla से milना है"
-You: "Patient का नाम बता दीजिए?"
-User: "Anjali Shukla"
-[call save_patient_field(name="Anjali Shukla")]
-You: "Age?"
-User: "28"
-[call save_patient_field(age=28)]
-[Continue with phone, facility...]"""
+        # Load instructions from YAML config with memory context
+        instructions = config.get_task_prompt(
+            "data_collection",
+            memory_context=self.memory.to_context_block()
+        )
 
         super().__init__(instructions=instructions, chat_ctx=chat_ctx)
-        logger.info("📋 Data Collection Task initialized")
+        logger.info(f"📋 Data Collection Task initialized ({config.hospital_name})")
 
     async def on_enter(self) -> None:
         """Called when task starts"""
@@ -179,9 +125,60 @@ User: "28"
         return "No fields to save"
 
     @function_tool
+    async def confirm_specialty(
+        self,
+        confirmed: bool = True,
+        new_specialty: Optional[str] = None
+    ) -> str:
+        """Confirm or change the specialty after data collection.
+        
+        Args:
+            confirmed: True if user confirms the specialty, False if they want to change
+            new_specialty: If changing, the new specialty name
+        """
+        state = self.memory.session_state
+        
+        if confirmed:
+            logger.info(f"   ✓ User confirmed specialty: {state.patient.symptoms or 'general'}")
+            # Complete the task
+            self._complete_task()
+            return "CONFIRMED_AND_COMPLETE"
+        else:
+            if new_specialty:
+                logger.info(f"   🔄 User changed specialty to: {new_specialty}")
+                self.memory.update_patient_info(symptoms=new_specialty)
+                # Complete the task with new specialty
+                self._complete_task()
+                return f"CHANGED_TO_{new_specialty}_AND_COMPLETE"
+            else:
+                return "Please specify the new specialty you want"
+
+    @function_tool
+    async def handoff_to_emergency(self) -> str:
+        """Emergency detected during data collection! Hand off immediately to emergency team.
+        Use when: Patient mentions "अभी chest pain", "साँस नहीं आ रही", emergency, severe pain + "अभी"
+        """
+        logger.warning("🚨 EMERGENCY DETECTED in Data Collection Task!")
+        logger.info("   Immediate handoff to Emergency Agent")
+        
+        from agents.emergency_agent import EmergencyAgent
+        emergency_agent = EmergencyAgent(
+            memory=self.memory,
+            chat_ctx=self.session.history
+        )
+        
+        # Force complete this task and handoff
+        self.complete(PatientData(completed=False))
+        
+        # Note: The session update needs to happen at agent level
+        return "EMERGENCY_DETECTED_HANDOFF_REQUIRED"
+
+    @function_tool
     async def finish_data_collection(self) -> str:
         """Mark data collection as complete.
         Call this ONLY when you have collected ALL: name, age, phone, facility
+        
+        This will ask confirmation about symptom/specialty before proceeding.
         """
         state = self.memory.session_state
 
@@ -206,9 +203,18 @@ User: "28"
             logger.warning(f"⚠️ Cannot complete - missing: {', '.join(missing)}")
             return f"Cannot complete yet. Still need: {', '.join(missing)}"
 
-        # All collected - complete the task
-        self._complete_task()
-        return "TASK_COMPLETE"
+        # All collected - DON'T complete yet, ask for confirmation
+        # Check if symptom is in memory
+        symptom = state.patient.symptoms or state.metadata.current_intent
+        
+        if symptom:
+            logger.info(f"   Symptom/specialty from memory: {symptom}")
+            # Return confirmation message with symptom context
+            return f"ASK_SYMPTOM_CONFIRMATION:{symptom}"
+        else:
+            # No symptom yet, just complete
+            self._complete_task()
+            return "TASK_COMPLETE"
 
     def _complete_task(self) -> None:
         """Internal method to complete the task with result"""

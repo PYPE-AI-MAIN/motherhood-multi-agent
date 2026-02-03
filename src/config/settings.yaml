@@ -1,0 +1,136 @@
+# Felix Hospital Voice AI Configuration
+# ======================================
+# This file contains all system settings including:
+# - Hospital details
+# - Agent configuration
+# - STT/TTS/LLM settings
+# - Feature flags
+
+# Hospital Information
+hospital:
+  name: "Felix Hospital"
+  facilities:
+    - "Noida"
+    - "Greater Noida"
+  default_facility: "Noida"
+
+# AI Agent Configuration
+ai_agent:
+  name: "Anjali"
+  gender: "female"
+  role: "receptionist"
+
+  # Voice persona settings
+  voice_style:
+    language: "hindi-english-mix"
+    tone: "warm"
+    acknowledgments:
+      - "ठीक है"
+      - "समझ गई"
+      - "अच्छा"
+      - "बिल्कुल"
+    female_verbs:
+      - "देख लेती हूँ"
+      - "कर रही हूँ"
+      - "समझ गई"
+      - "बता दूँगी"
+
+# Speech-to-Text Configuration
+stt:
+  provider: "sarvam"
+  language: "hi-IN"
+  # Additional Sarvam settings can be added here
+
+# Text-to-Speech Configuration
+tts:
+  provider: "elevenlabs"
+  voice_id: "h3vxoHEil3T93VGdTQQu"
+  # Alternate voices (for future use)
+  voices:
+    anjali: "h3vxoHEil3T93VGdTQQu"
+    male_backup: ""
+
+# Large Language Model Configuration
+llm:
+  provider: "openai"
+  model: "gpt-4o-mini"
+  # Fallback model
+  fallback_model: "gpt-3.5-turbo"
+  temperature: 0.7
+  max_tokens: 1024
+
+# Voice Activity Detection
+vad:
+  provider: "silero"
+
+# Feature Flags
+features:
+  enable_living_memory: true
+  enable_mock_api: true
+  debug_logging: true
+
+# Timing Configuration
+timing:
+  # How early patients should arrive (in minutes)
+  arrival_buffer_minutes: 15
+  # Walk-in waiting time estimate (in hours)
+  walkin_wait_hours: 1.5
+  # Number of days to look ahead for slots
+  slot_lookahead_days: 2
+  # Max slots to show at once
+  max_slots_display: 3
+
+# Emergency Keywords (triggers immediate emergency handoff)
+emergency:
+  keywords:
+    hindi:
+      - "अभी chest pain"
+      - "साँस नहीं आ रही"
+      - "बहुत दर्द"
+      - "accident"
+      - "खून बह रहा"
+    english:
+      - "emergency"
+      - "accident"
+      - "can't breathe"
+      - "severe pain"
+      - "heart attack"
+
+# Intent Classification Keywords
+intents:
+  appointment:
+    - "appointment"
+    - "doctor"
+    - "consultation"
+    - "checkup"
+    - "booking"
+    - "दिखाना है"
+    - "मिलना है"
+
+  billing:
+    - "bill"
+    - "payment"
+    - "receipt"
+    - "insurance"
+    - "claim"
+    - "refund"
+    - "पैसे"
+    - "cost"
+
+  health_package:
+    - "health checkup"
+    - "package"
+    - "full body checkup"
+    - "screening"
+    - "master checkup"
+
+# API Configuration
+api:
+  base_url: "https://api.felixhospital.com"
+  timeout_seconds: 30
+  retry_attempts: 3
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

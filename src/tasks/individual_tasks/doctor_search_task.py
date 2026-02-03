@@ -13,6 +13,7 @@ from core.memory import LivingMemory
 from tools.felix_api import felix_api
 from utils.symptom_mapper import map_symptom_to_specialty
 from utils.date_helpers import get_today, add_days
+from config.config_loader import config
 
 logger = logging.getLogger("felix-hospital.tasks.doctor_search")
 
@@ -42,75 +43,17 @@ class DoctorSearchTask(AgentTask[DoctorSearchResult]):
         self.memory = memory
 
         # Check if symptoms already exist
-        existing_symptoms = self.memory.session_state.patient.symptoms
+        existing_symptoms = self.memory.session_state.patient.symptoms or "NOT COLLECTED"
 
-        instructions = f"""You find doctors for patients at Felix Hospital. FEMALE voice.
-
-MEMORY:
-{self.memory.to_context_block()}
-
-IMPORTANT - CHECK SYMPTOMS FIRST:
-Current symptoms in memory: "{existing_symptoms or 'NOT COLLECTED'}"
-
-YOUR TASK:
-1. IF symptoms already in memory → Say "ठीक है, मैं देख लेती हूँ" and call search_doctors()
-2. IF symptoms NOT in memory → Ask "किस लिए doctor चाहिए?" or "क्या problem है?"
-3. After getting symptoms → call search_doctors() with the symptoms
-4. Present doctor + first 2-3 slots clearly
-5. Call finish_doctor_search() when done presenting
-
-LANGUAGE:
-- Female: "देख लेती हूँ", "समझती हूँ", "बता दूँगी"
-- Empathetic: "समझ सकती हूँ", "कोई बात नहीं"
-- Natural Hindi-English mix
-- "Line pe rahiye" when searching
-
-TOOL ENFORCEMENT:
-When you say "देख लेती हूँ" you MUST immediately call search_doctors().
-
-REAL CONVERSATION EXAMPLES:
-
-Example 1 (Symptoms already known):
-[Memory has: symptoms="cardiology"]
-You: "Cardiology के लिए ठीक है। Line pe rahiye, मैं देख लेती हूँ।"
-[call search_doctors("cardiology")]
-[API returns: Dr. Manoj Yadav, 8 slots]
-You: "Dr. Manoj Yadav available हैं। Wednesday ten thirty AM, Thursday eleven AM या Friday twelve PM - कौन सा prefer करेंगे?"
-[call finish_doctor_search()]
-
-Example 2 (Ask for symptoms):
-User: "घुटने में दर्द है"
-You: "समझ गई। Line pe rahiye, मैं देख लेती हूँ।"
-[call search_doctors("knee pain")]
-[API returns: Dr. Ankur Singh, 5 slots]
-You: "Dr. Ankur Singh available हैं Orthopedics में। Monday eleven AM, twelve PM या Tuesday ten AM - कौन सा time सही रहेगा?"
-[call finish_doctor_search()]
-
-Example 3 (Specific doctor requested):
-User: "Dr. Love Kaushik से milना है"
-You: "एक minute, check kar leti hoon।"
-[call search_doctors("Dr. Love Kaushik")]
-[API returns: Dr. Love Kaushik, 1 slot at 12:20 PM]
-You: "हाँ जी, Dr. Love Kaushik aaj available हैं। एक ही slot बचा है twelve twenty PM का।"
-[call finish_doctor_search()]
-
-Example 4 (All slots full - walk-in):
-User: "Dr. Bhalla का appointment चाहिए"
-You: "देख लेती हूँ।"
-[call search_doctors("Dr. Bhalla")]
-[API returns: No slots available]
-You: "Dr. Bhalla की आज की appointments तो full हो चुकी हैं, लेकिन walk-in में आ सकते हैं। One PM तक available हैं। डेढ़ से दो घंटे का waiting रहेगा। ठीक रहेगा?"
-
-Example 5 (Tomorrow's appointment):
-User: "Kal ke liye gynecologist चाहिए"
-You: "ठीक है, line pe rahiye।"
-[call search_doctors("gynecology")]
-[API returns: Dr. Deepika Singh, tomorrow slots]
-You: "Dr. Deepika Singh available हैं kal। Morning में ten AM, eleven AM ya afternoon में two PM - कौन सा time suit करता है?"
-[call finish_doctor_search()]"""
+        # Load instructions from YAML config with dynamic variables
+        instructions = config.get_task_prompt(
+            "doctor_search",
+            memory_context=self.memory.to_context_block(),
+            existing_symptoms=existing_symptoms
+        )
 
         super().__init__(instructions=instructions, chat_ctx=chat_ctx)
-        logger.info("🔍 Doctor Search Task initialized")
+        logger.info(f"🔍 Doctor Search Task initialized ({config.hospital_name})")
 
     async def on_enter(self) -> None:
         """Called when task starts"""
@@ -237,3 +180,22 @@ You: "Dr. Deepika Singh available हैं kal। Morning में ten AM, ele
         # Return control to parent agent
         self.complete(result)
         return "TASK_COMPLETE"
+    
+    @function_tool
+    async def handoff_to_emergency(self) -> str:
+        """Emergency detected during doctor search! Hand off immediately to emergency team.
+        Use when: Patient mentions "अभी chest pain", "साँस नहीं आ रही", emergency, severe pain + "अभी"
+        """
+        logger.warning("🚨 EMERGENCY DETECTED in Doctor Search Task!")
+        logger.info("   Immediate handoff to Emergency Agent")
+        
+        from agents.emergency_agent import EmergencyAgent
+        emergency_agent = EmergencyAgent(
+            memory=self.memory,
+            chat_ctx=self.session.history
+        )
+        
+        # Force complete this task
+        self.complete(DoctorSearchResult(completed=False))
+        
+        return "EMERGENCY_DETECTED_HANDOFF_REQUIRED"

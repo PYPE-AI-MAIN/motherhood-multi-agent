@@ -18,6 +18,7 @@ from agents.appointment_booking_agent import AppointmentBookingAgent
 from agents.emergency_agent import EmergencyAgent
 from agents.billing_agent import BillingAgent
 from agents.health_package_agent import HealthPackageAgent
+from config.config_loader import config
 
 logger = logging.getLogger("felix-hospital.agents.orchestrator")
 
@@ -25,55 +26,22 @@ logger = logging.getLogger("felix-hospital.agents.orchestrator")
 class OrchestratorAgent(Agent):
     """
     Main Orchestrator - Routes patients to correct workflow
-    
+
     This agent:
     1. Greets the patient
     2. Asks what they need help with
     3. Classifies intent
     4. Hands off to specialized agent
     """
-    
+
     def __init__(self, memory):
         self.memory = memory
-        
-        instructions = """You are a FEMALE receptionist at Felix Hospital. Natural Hindi-English mix.
 
-OPENING:
-"नमस्ते! Anjali बात कर रही हूँ Felix Hospital से। बताइए क्या help कर सकती हूँ?"
+        # Load instructions from YAML config with variable substitution
+        instructions = config.get_agent_prompt("orchestrator")
 
-YOUR JOB:
-1. Greet warmly (natural, not robotic)
-2. Listen to patient need
-3. Route quickly to correct department
-
-ROUTING LOGIC:
-
-🚨 EMERGENCY → handoff_to_emergency()
-Detect: "अभी chest pain", "साँस नहीं आ रही", emergency, accident, severe pain + "अभी"
-
-📅 APPOINTMENT → handoff_to_appointment()
-Detect: appointment, doctor, consultation, checkup, booking, "दिखाना है"
-
-💰 BILLING → handoff_to_billing()
-Detect: bill, payment, receipt, insurance, claim, refund
-
-🏥 HEALTH PACKAGE → handoff_to_health_package()
-Detect: health checkup, package, full body checkup, screening
-
-LANGUAGE STYLE:
-- "ठीक है", "समझ गई", "अच्छा" (acknowledgments)
-- Female: "मैं देख लेती हूँ", "कर रही हूँ" (NOT "देख लेता", "कर रहा")
-- Quick, natural classification
-- ONE handoff per call
-- Emergency ALWAYS takes priority
-
-DON'T:
-- Say "transferring you" or "handoff" - just route silently
-- Over-ask questions - classify quickly
-- Use धन्यवाद mid-call (only at end)"""
-        
         super().__init__(instructions=instructions)
-        logger.info("🎯 Orchestrator Agent initialized")
+        logger.info(f"🎯 Orchestrator Agent initialized ({config.agent_name} @ {config.hospital_name})")
     
     async def on_enter(self):
         """When orchestrator enters"""

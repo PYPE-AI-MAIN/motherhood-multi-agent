@@ -7,59 +7,22 @@ import logging
 from livekit.agents.voice import Agent, RunContext
 from livekit.agents.llm import function_tool, ChatContext
 
+from config.config_loader import config
+
 logger = logging.getLogger("felix-hospital.agents.health-package")
 
 
 class HealthPackageAgent(Agent):
     """Handles health package inquiries and bookings"""
-    
+
     def __init__(self, memory, chat_ctx: ChatContext):
         self.memory = memory
-        
-        instructions = f"""You provide HEALTH CHECKUP PACKAGE info at Felix Hospital. FEMALE voice.
 
-WHEN TO USE:
-- Health checkup questions
-- Package pricing/inclusions
-- Preventive screening
-- Package booking
+        # Load instructions from YAML config
+        instructions = config.get_agent_prompt("health_package")
 
-AVAILABLE PACKAGES:
-1. Basic - ₹1,500
-   CBC, Blood Sugar, Lipid Profile
-   
-2. Comprehensive - ₹3,500
-   Basic के सब + Thyroid, Liver, Kidney
-   
-3. Master - ₹7,500
-   Comprehensive के सब + ECG, X-Ray, USG
-   
-4. Senior Citizen - ₹6,000
-   60+ age के लिए customized
-
-MEMORY:
-{memory.to_context_block()}
-
-LANGUAGE STYLE:
-- "हमारे पास basic, comprehensive, master, और senior packages हैं"
-- Female: "मैं बताती हूँ", "देख लेती हूँ"
-- Natural Hindi-English mix
-- Prices clearly: "₹3,500 रहता है"
-
-RULES:
-- Package contents clearly explain करिए
-- Prices clearly mention करिए
-- Date और facility (Noida/Greater Noida) पूछिए
-- Booking के लिए book_health_package() use करिए
-
-EXAMPLE:
-User: "Health checkup के बारे में बताइए"
-You: "हमारे पास basic, comprehensive, master, और senior citizen packages हैं। कौन सा जानना चाहेंगे?"
-User: "Comprehensive"
-You: "Comprehensive package ₹3,500 रहता है। इसमें CBC, Blood Sugar, Lipid Profile, Thyroid, Liver, Kidney tests हैं। Ye package book करूँ?"""
-        
         super().__init__(instructions=instructions, chat_ctx=chat_ctx)
-        logger.info("🏥 Health Package Agent initialized")
+        logger.info(f"🏥 Health Package Agent initialized ({config.hospital_name})")
     
     async def on_enter(self):
         """When health package agent enters"""
@@ -117,3 +80,54 @@ You: "Comprehensive package ₹3,500 रहता है। इसमें CBC,
         )
         
         return f"Health package {package_name} booked for {preferred_date} at {facility}. Booking ID: HP{hash(preferred_date) % 10000}"
+    
+    @function_tool
+    async def handoff_to_emergency(self, context: RunContext):
+        """Hand off to Emergency Agent if patient mentions emergency during health package inquiry.
+        Use when: Patient mentions chest pain, breathing difficulty, emergency, accident
+        """
+        logger.info("=" * 60)
+        logger.info("🚨 HANDOFF: Health Package Agent → Emergency Agent")
+        logger.info("=" * 60)
+        
+        from agents.emergency_agent import EmergencyAgent
+        emergency_agent = EmergencyAgent(
+            memory=self.memory,
+            chat_ctx=self.session.history
+        )
+        context.session.update_agent(emergency_agent)
+        return "HANDOFF_TO_EMERGENCY"
+    
+    @function_tool
+    async def handoff_to_appointment(self, context: RunContext):
+        """Hand off to Appointment Agent if patient wants doctor appointment instead of package.
+        Use when: Patient asks about seeing a specific doctor or wants consultation
+        """
+        logger.info("=" * 60)
+        logger.info("📅 HANDOFF: Health Package Agent → Appointment Agent")
+        logger.info("=" * 60)
+        
+        from agents.appointment_booking_agent import AppointmentBookingAgent
+        appointment_agent = AppointmentBookingAgent(
+            memory=self.memory,
+            chat_ctx=self.session.history
+        )
+        context.session.update_agent(appointment_agent)
+        return "HANDOFF_TO_APPOINTMENT"
+    
+    @function_tool
+    async def handoff_to_billing(self, context: RunContext):
+        """Hand off to Billing Agent if patient asks about payment for package.
+        Use when: Patient asks about bill, payment methods, insurance coverage
+        """
+        logger.info("=" * 60)
+        logger.info("💰 HANDOFF: Health Package Agent → Billing Agent")
+        logger.info("=" * 60)
+        
+        from agents.billing_agent import BillingAgent
+        billing_agent = BillingAgent(
+            memory=self.memory,
+            chat_ctx=self.session.history
+        )
+        context.session.update_agent(billing_agent)
+        return "HANDOFF_TO_BILLING"

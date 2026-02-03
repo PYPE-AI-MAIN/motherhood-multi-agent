@@ -7,53 +7,22 @@ import logging
 from livekit.agents.voice import Agent, RunContext
 from livekit.agents.llm import function_tool, ChatContext
 
+from config.config_loader import config
+
 logger = logging.getLogger("felix-hospital.agents.billing")
 
 
 class BillingAgent(Agent):
     """Handles billing and payment inquiries"""
-    
+
     def __init__(self, memory, chat_ctx: ChatContext):
         self.memory = memory
-        
-        instructions = f"""You handle BILLING inquiries at Felix Hospital. FEMALE voice.
 
-WHEN TO USE:
-- Bill/invoice questions
-- Payment status
-- Insurance claims
-- Cost estimates
-- Refunds
+        # Load instructions from YAML config
+        instructions = config.get_agent_prompt("billing")
 
-MEMORY:
-{memory.to_context_block()}
-
-YOUR CAPABILITIES:
-1. check_bill_status(phone) - Check bills
-2. Explain payment options
-3. Insurance process info
-4. transfer_to_accounts() - Complex queries
-
-LANGUAGE STYLE:
-- "बिलिंग के लिए phone number बता दीजिए?"
-- Female: "मैं चेक कर लेती हूँ", "देख लेती हूँ"
-- Natural Hindi-English mix
-- Clear about amounts: "₹3,500 रहता है"
-
-RULES:
-- Phone number पूछिए for verification
-- Clear about amounts and payment methods
-- Complex queries → transfer_to_accounts()
-
-EXAMPLE:
-User: "Bill पूछना था"
-You: "ठीक है। Billing check करने के लिए phone number बता दीजिए?"
-User: "98765..."
-You: "ठीक है, note कर लिया। मैं चेक कर लेती हूँ। Line पे रहियेगा।"
-[call check_bill_status]"""
-        
         super().__init__(instructions=instructions, chat_ctx=chat_ctx)
-        logger.info("💰 Billing Agent initialized")
+        logger.info(f"💰 Billing Agent initialized ({config.hospital_name})")
     
     async def on_enter(self):
         """When billing agent enters"""
@@ -84,3 +53,54 @@ You: "ठीक है, note कर लिया। मैं चेक कर �
         """Transfer to accounts department"""
         logger.info("💰 Transferring to accounts department")
         return "TRANSFER_TO_ACCOUNTS"
+    
+    @function_tool
+    async def handoff_to_emergency(self, context: RunContext):
+        """Hand off to Emergency Agent if patient mentions emergency during billing inquiry.
+        Use when: Patient mentions chest pain, breathing difficulty, emergency, accident
+        """
+        logger.info("=" * 60)
+        logger.info("🚨 HANDOFF: Billing Agent → Emergency Agent")
+        logger.info("=" * 60)
+        
+        from agents.emergency_agent import EmergencyAgent
+        emergency_agent = EmergencyAgent(
+            memory=self.memory,
+            chat_ctx=self.session.history
+        )
+        context.session.update_agent(emergency_agent)
+        return "HANDOFF_TO_EMERGENCY"
+    
+    @function_tool
+    async def handoff_to_appointment(self, context: RunContext):
+        """Hand off to Appointment Agent if patient wants to book appointment after billing inquiry.
+        Use when: Patient asks about booking doctor appointment
+        """
+        logger.info("=" * 60)
+        logger.info("📅 HANDOFF: Billing Agent → Appointment Agent")
+        logger.info("=" * 60)
+        
+        from agents.appointment_booking_agent import AppointmentBookingAgent
+        appointment_agent = AppointmentBookingAgent(
+            memory=self.memory,
+            chat_ctx=self.session.history
+        )
+        context.session.update_agent(appointment_agent)
+        return "HANDOFF_TO_APPOINTMENT"
+    
+    @function_tool
+    async def handoff_to_health_package(self, context: RunContext):
+        """Hand off to Health Package Agent if patient asks about health packages.
+        Use when: Patient asks about health checkup packages
+        """
+        logger.info("=" * 60)
+        logger.info("🏥 HANDOFF: Billing Agent → Health Package Agent")
+        logger.info("=" * 60)
+        
+        from agents.health_package_agent import HealthPackageAgent
+        health_package_agent = HealthPackageAgent(
+            memory=self.memory,
+            chat_ctx=self.session.history
+        )
+        context.session.update_agent(health_package_agent)
+        return "HANDOFF_TO_HEALTH_PACKAGE"

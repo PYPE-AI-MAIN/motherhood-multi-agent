@@ -12,6 +12,7 @@ from livekit.agents.llm import function_tool, ChatContext
 from core.memory import LivingMemory
 from tools.felix_api import felix_api
 from utils.date_helpers import format_date_natural
+from config.config_loader import config
 
 logger = logging.getLogger("felix-hospital.tasks.booking_confirmation")
 
@@ -42,8 +43,8 @@ class BookingConfirmationTask(AgentTask[BookingConfirmationResult]):
         self.memory = memory
         state = memory.session_state
 
-        # Build summary
-        summary = f"""
+        # Build booking summary for the prompt
+        booking_summary = f"""
 Patient: {state.patient.name}, {state.patient.age}y
 Doctor: Dr. {state.booking.doctor_name}
 Time: {state.booking.selected_slot_time}
@@ -51,63 +52,14 @@ Date: {state.booking.selected_slot_date}
 Facility: {state.patient.facility}
 """
 
-        instructions = f"""You confirm appointment bookings at Felix Hospital. FEMALE voice.
-
-BOOKING SUMMARY:
-{summary}
-
-YOUR TASK:
-1. Summarize the booking details to patient (brief, natural)
-2. Ask: "सब details सही हैं? Confirm कर दूँ?"
-3. If yes → call confirm_booking()
-4. Give final confirmation message with key details
-
-LANGUAGE:
-- Female: "हो गया", "confirm हो गई", "बहुत अच्छा"
-- Warm, reassuring tone
-- Natural Hindi-English mix
-
-CONFIRMATION MESSAGE FORMAT:
-"Booking confirm हो गई है। Dr. [NAME] के साथ [DAY], [DATE] को [TIME] पर [FACILITY] में।
-Try कीजिएगा 15-20 minutes पहले पहुँचने की।
-WhatsApp पर confirmation आ जाएगा। धन्यवाद!"
-
-REAL CONVERSATION EXAMPLES:
-
-Example 1 (Standard confirmation):
-You: "तो confirm कर रही हूँ - Dr. Ankur Singh के साथ Monday, 27th January को eleven AM पर Noida में। सही है?"
-User: "हाँ जी"
-[call confirm_booking()]
-You: "बहुत अच्छा! Booking confirm हो गई है। Dr. Ankur Singh के साथ Monday, 27th January को eleven AM पर Noida में।
-Try कीजिएगा 15-20 minutes पहले पहुँचने की। WhatsApp पर confirmation आ जाएगा। धन्यवाद!"
-
-Example 2 (Quick confirmation):
-You: "Confirm कर दूँ Thursday eleven AM का?"
-User: "हाँ"
-[call confirm_booking()]
-You: "हो गया! Appointment confirm है Dr. Manoj Yadav के साथ Thursday eleven AM पर Greater Noida में।
-Appointment time से थोड़ा पहले आइएगा। WhatsApp पर details आएंगे। धन्यवाद!"
-
-Example 3 (With OPD timing reminder):
-You: "Dr. Anupam Das के साथ kal one forty-five PM। Confirm करूँ?"
-User: "हाँ ठीक है"
-[call confirm_booking()]
-You: "Perfect! Appointment book हो गई। Dr. Anupam Das के साथ कल one forty-five PM पर।
-Try कीजिएगा 15-20 minutes पहले विज़िट कर लेना। Confirmation WhatsApp पर आ जाएगा। धन्यवाद!"
-
-Example 4 (Walk-in scenario - no booking):
-You: "Dr. Bhalla की appointments full हैं। ठीक है Anjali जी। Walk-in में आ जाइए 12:30 से 1:00 के बीच। Dr. Bhalla मिल जाएंगे। धन्यवाद!"
-
-IMPORTANT:
-- Keep it natural and warm
-- Always mention: Doctor name, Day/Date, Time, Facility
-- Add "15-20 minutes पहले" reminder
-- Mention WhatsApp confirmation
-- NO robotic phrases like "booking confirmation task complete"
-"""
+        # Load instructions from YAML config with dynamic variables
+        instructions = config.get_task_prompt(
+            "booking_confirmation",
+            booking_summary=booking_summary
+        )
 
         super().__init__(instructions=instructions, chat_ctx=chat_ctx)
-        logger.info("✅ Booking Confirmation Task initialized")
+        logger.info(f"✅ Booking Confirmation Task initialized ({config.hospital_name})")
 
     async def on_enter(self) -> None:
         """Called when task starts"""
@@ -203,3 +155,22 @@ IMPORTANT:
         except Exception as e:
             logger.error(f"   API FAILED: {str(e)}")
             return f"Booking failed: {str(e)}. Please try again."
+    
+    @function_tool
+    async def handoff_to_emergency(self) -> str:
+        """Emergency detected during booking confirmation! Hand off immediately to emergency team.
+        Use when: Patient mentions "अभी chest pain", "साँस नहीं आ रही", emergency, severe pain + "अभी"
+        """
+        logger.warning("🚨 EMERGENCY DETECTED in Booking Confirmation Task!")
+        logger.info("   Immediate handoff to Emergency Agent")
+        
+        from agents.emergency_agent import EmergencyAgent
+        emergency_agent = EmergencyAgent(
+            memory=self.memory,
+            chat_ctx=self.session.history
+        )
+        
+        # Force complete this task
+        self.complete(BookingConfirmationResult(completed=False))
+        
+        return "EMERGENCY_DETECTED_HANDOFF_REQUIRED"

@@ -10,6 +10,7 @@ from livekit.agents.voice import AgentTask
 from livekit.agents.llm import function_tool, ChatContext
 
 from core.memory import LivingMemory
+from config.config_loader import config
 
 logger = logging.getLogger("felix-hospital.tasks.slot_selection")
 
@@ -36,69 +37,24 @@ class SlotSelectionTask(AgentTask[SlotSelectionResult]):
     def __init__(self, memory: LivingMemory, chat_ctx: ChatContext):
         self.memory = memory
 
-        # Get available slots
+        # Get available slots and format them
         slots = self.memory.session_state.metadata.available_slots
         slots_text = ""
         if slots:
             for i, slot in enumerate(slots[:5], 1):
                 slots_text += f"{i}. {slot['day_of_week']} {slot['time']}\n"
+        else:
+            slots_text = "No slots loaded yet"
 
-        instructions = f"""You help patients select appointment slots at Felix Hospital. FEMALE voice.
-
-MEMORY:
-{self.memory.to_context_block()}
-
-AVAILABLE SLOTS:
-{slots_text if slots_text else "No slots loaded yet"}
-
-YOUR TASK:
-1. Ask patient: "कौन सा time सही रहेगा आपके लिए?"
-2. Listen to their preference
-3. Call select_slot() with their chosen time
-4. Confirm the selection naturally (NO robotic announcements)
-
-LANGUAGE:
-- Say times in ENGLISH: "ten AM", "two thirty PM" (NOT "10:00")
-- Female voice: "समझ गई", "ठीक है", "Perfect"
-- Natural Hindi-English mix
-
-IMPORTANT:
-- Present only 2-3 slots at a time
-- Be clear about day AND time
-- Call select_slot() once patient chooses
-- NO announcements like "slot selection complete"
-
-REAL CONVERSATION EXAMPLES:
-
-Example 1 (Patient chooses from options):
-You: "Monday ten AM, eleven AM या Tuesday two PM - कौन सा time सही रहेगा?"
-User: "Monday eleven AM"
-You: "Perfect। Confirm कर दूँ Monday eleven AM के लिए?"
-User: "हाँ जी"
-[call select_slot("11:00 AM")]
-
-Example 2 (Patient asks about specific day):
-User: "Sunday ko koi slot hai?"
-You: "Sunday के लिए देख lेती हूँ।"
-[Check slots...]
-You: "Sunday ke liye slots available नहीं हैं। Monday या Tuesday prefer कर सकते हैं। Monday ten AM available है, book कर दूँ?"
-User: "हाँ Monday ठीक है"
-[call select_slot("10:00 AM")]
-
-Example 3 (Tomorrow's slot):
-You: "Kal के लिए ten AM, eleven AM या one PM available है। कौन सा prefer करेंगे?"
-User: "Ten AM"
-[call select_slot("10:00 AM")]
-
-Example 4 (Quick confirmation):
-You: "Dr. Ankur Singh के साथ Monday eleven AM, twelve PM available है। कौन सा time?"
-User: "eleven AM चल जाएगा"
-You: "Bilkul। Confirm कर दूँ?"
-User: "हाँ"
-[call select_slot("11:00 AM")]"""
+        # Load instructions from YAML config with dynamic variables
+        instructions = config.get_task_prompt(
+            "slot_selection",
+            memory_context=self.memory.to_context_block(),
+            slots_text=slots_text
+        )
 
         super().__init__(instructions=instructions, chat_ctx=chat_ctx)
-        logger.info("📅 Slot Selection Task initialized")
+        logger.info(f"📅 Slot Selection Task initialized ({config.hospital_name})")
 
     async def on_enter(self) -> None:
         """Called when task starts"""
@@ -174,3 +130,22 @@ User: "हाँ"
         # Return control to parent
         self.complete(result)
         return f"Selected: {selected['day_of_week']} {selected['time']}"
+    
+    @function_tool
+    async def handoff_to_emergency(self) -> str:
+        """Emergency detected during slot selection! Hand off immediately to emergency team.
+        Use when: Patient mentions "अभी chest pain", "साँस नहीं आ रही", emergency, severe pain + "अभी"
+        """
+        logger.warning("🚨 EMERGENCY DETECTED in Slot Selection Task!")
+        logger.info("   Immediate handoff to Emergency Agent")
+        
+        from agents.emergency_agent import EmergencyAgent
+        emergency_agent = EmergencyAgent(
+            memory=self.memory,
+            chat_ctx=self.session.history
+        )
+        
+        # Force complete this task
+        self.complete(SlotSelectionResult(completed=False))
+        
+        return "EMERGENCY_DETECTED_HANDOFF_REQUIRED"
