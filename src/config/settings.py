@@ -81,7 +81,7 @@ class Settings(BaseSettings):
     @property
     def llm_model(self) -> str:
         """Get LLM model from YAML config."""
-        return yaml_config.llm_config.get("model", "gpt-4o-mini")
+        return yaml_config.llm_config.get("model", "gpt-4.1")
 
     @property
     def timing_config(self) -> dict:

@@ -158,7 +158,7 @@ def create_llm():
     """Create LLM instance from YAML config."""
     llm_config = config.llm_config
     provider = llm_config.get("provider", "openai")
-    model = llm_config.get("model", "gpt-4o-mini")
+    model = llm_config.get("model", "gpt-4.1")
 
     if provider == "openai":
         return openai.LLM(model=model)
