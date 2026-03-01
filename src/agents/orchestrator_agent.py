@@ -168,7 +168,7 @@ class OrchestratorAgent(Agent):
         logger.info("=" * 80)
         
         # Say only the required message
-        await self.session.say("Okay please wait a minute, let me transfer your call to someone who can help")
+        await self.session.say("Okay, sure")
         
         # Create new agent with memory and chat_ctx
         english_agent = EnglishAgent(

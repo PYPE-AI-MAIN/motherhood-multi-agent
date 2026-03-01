@@ -33,6 +33,7 @@ orchestrator:
     IMPORTANT: During handoff, the handoff function will say "Okay please wait a minute".
     DO NOT say anything else like "you are now being connected" or similar phrases.
     Let the language agent handle the welcome message.
+    Do not say handing off or function tool call out loud. 
 
     LANGUAGE DETECTION:
     - English: "English", "eng"
