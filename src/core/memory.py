@@ -28,22 +28,22 @@ class LivingMemory:
         state = self.session_state
         
         memory_block = f"""
-╔══════════════════════════════════════════════╗
-║          PATIENT INFORMATION CARD            ║
-╠══════════════════════════════════════════════╣
-║ Name: {state.get_patient_name():<35} ║
-║ Age: {state.get_patient_age():<36} ║
-║ Gender: {state.get_patient_gender():<34} ║
+╔═══════════════════════════════════════════════════════╗
+║          PATIENT INFORMATION CARD                     ║
+╠═══════════════════════════════════════════════════════╣
+║ Name: {state.get_patient_name():<35}                  ║
+║ Age: {state.get_patient_age():<36}                    ║
+║ Gender: {state.get_patient_gender():<34}              ║
 ║ Phone: {state.patient.phone or '[NOT COLLECTED]':<35} ║
-║ Facility: {state.get_facility():<32} ║
-║ Symptoms: {state.get_symptoms():<32} ║
-╠══════════════════════════════════════════════╣
-║          BOOKING INFORMATION                 ║
-╠══════════════════════════════════════════════╣
-║ Doctor: {state.get_doctor_name():<34} ║
-║ Slot: {state.get_slot_info():<36} ║
-║ Stage: {state.booking.booking_stage:<35} ║
-╚══════════════════════════════════════════════╝
+║ Facility: {state.get_facility():<32}                  ║
+║ Symptoms: {state.get_symptoms():<32}                  ║
+╠═══════════════════════════════════════════════════════╣
+║          BOOKING INFORMATION                          ║
+╠═══════════════════════════════════════════════════════╣
+║ Doctor: {state.get_doctor_name():<34}                 ║
+║ Slot: {state.get_slot_info():<36}                     ║
+║ Stage: {state.booking.booking_stage:<35}              ║
+╚═══════════════════════════════════════════════════════╝
 """
         return memory_block
     

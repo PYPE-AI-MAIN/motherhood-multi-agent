@@ -3,21 +3,27 @@ Orchestrator Agent - Main entry point
 Classifies intent and routes to appropriate specialized agent
 
 This is the FIRST agent that talks to every patient.
-It determines what the patient needs and hands off to:
-- AppointmentBookingAgent (for doctor appointments)
-- EmergencyAgent (for emergencies)
-- BillingAgent (for billing questions)
-- HealthPackageAgent (for health checkup packages)
+It first determines language preference, then hands off to:
+- Language Agents (English, Hindi, Kannada, Tamil, Telugu)
+- Specialized Agents (Appointment, Emergency, Billing, Health Package)
 """
 
 import logging
 from livekit.agents.voice import Agent, RunContext
 from livekit.agents.llm import function_tool
+from livekit.plugins import sarvam, elevenlabs
 
 from agents.appointment_booking_agent import AppointmentBookingAgent
 from agents.emergency_agent import EmergencyAgent
 from agents.billing_agent import BillingAgent
 from agents.health_package_agent import HealthPackageAgent
+
+# Import language agents
+from agents.languages.english_agent import EnglishAgent
+from agents.languages.hindi_agent import HindiAgent
+from agents.languages.kannada_agent import KannadaAgent
+from agents.languages.tamil_agent import TamilAgent
+from agents.languages.telugu_agent import TeluguAgent
 from config.config_loader import config
 
 logger = logging.getLogger("felix-hospital.agents.orchestrator")
@@ -28,10 +34,10 @@ class OrchestratorAgent(Agent):
     Main Orchestrator - Routes patients to correct workflow
 
     This agent:
-    1. Greets the patient
-    2. Asks what they need help with
-    3. Classifies intent
-    4. Hands off to specialized agent
+    1. Greets the patient and asks for language preference
+    2. Confirms language selection
+    3. Hands off to appropriate language agent
+    4. Language agent then handles specialized routing
     """
 
     def __init__(self, memory):
@@ -40,7 +46,10 @@ class OrchestratorAgent(Agent):
         # Load instructions from YAML config with variable substitution
         instructions = config.get_agent_prompt("orchestrator")
 
-        super().__init__(instructions=instructions)
+        super().__init__(
+            instructions=instructions,
+            stt=sarvam.STT(language="en-IN")
+        )
         logger.info(f"🎯 Orchestrator Agent initialized ({config.agent_name} @ {config.hospital_name})")
     
     async def on_enter(self):
@@ -49,7 +58,11 @@ class OrchestratorAgent(Agent):
         logger.info("🎯 ORCHESTRATOR AGENT - SESSION STARTED")
         logger.info("   Listening for patient intent...")
         logger.info("=" * 80)
+        
+        # DEBUG: Try to generate initial reply
+        logger.info("🔊 ATTEMPTING TO GENERATE OPENING MESSAGE...")
         await self.session.generate_reply(allow_interruptions=False)
+        logger.info("✅ OPENING MESSAGE GENERATED")
     
     @function_tool
     async def handoff_to_emergency(self, context: RunContext):
@@ -142,3 +155,104 @@ class OrchestratorAgent(Agent):
         self.session.update_agent(health_package_agent)
         
         return "HANDOFF_TO_HEALTH_PACKAGE"
+    
+    # Language Handoff Functions
+    @function_tool
+    async def handoff_to_english(self, context: RunContext):
+        """Hand off to English Agent.
+        Use when: Patient selects English as their preferred language
+        """
+        logger.info("=" * 80)
+        logger.info("🇬🇧 HANDOFF: Orchestrator → English Agent")
+        logger.info("=" * 80)
+        
+        # Create new agent with memory and chat_ctx
+        english_agent = EnglishAgent(
+            memory=self.memory,
+            chat_ctx=self.session.history
+        )
+        
+        # Perform the handoff
+        self.session.update_agent(english_agent)
+        
+        return "HANDOFF_TO_ENGLISH"
+    
+    @function_tool
+    async def handoff_to_hindi(self, context: RunContext):
+        """Hand off to Hindi Agent.
+        Use when: Patient selects Hindi as their preferred language
+        """
+        logger.info("=" * 80)
+        logger.info("🇮🇳 HANDOFF: Orchestrator → Hindi Agent")
+        logger.info("=" * 80)
+        
+        # Create new agent with memory and chat_ctx
+        hindi_agent = HindiAgent(
+            memory=self.memory,
+            chat_ctx=self.session.history
+        )
+        
+        # Perform the handoff
+        self.session.update_agent(hindi_agent)
+        
+        return "HANDOFF_TO_HINDI"
+    
+    @function_tool
+    async def handoff_to_kannada(self, context: RunContext):
+        """Hand off to Kannada Agent.
+        Use when: Patient selects Kannada as their preferred language
+        """
+        logger.info("=" * 80)
+        logger.info("🇮🇳 HANDOFF: Orchestrator → Kannada Agent")
+        logger.info("=" * 80)
+        
+        # Create new agent with memory and chat_ctx
+        kannada_agent = KannadaAgent(
+            memory=self.memory,
+            chat_ctx=self.session.history
+        )
+        
+        # Perform the handoff
+        self.session.update_agent(kannada_agent)
+        
+        return "HANDOFF_TO_KANNADA"
+    
+    @function_tool
+    async def handoff_to_tamil(self, context: RunContext):
+        """Hand off to Tamil Agent.
+        Use when: Patient selects Tamil as their preferred language
+        """
+        logger.info("=" * 80)
+        logger.info("🇮🇳 HANDOFF: Orchestrator → Tamil Agent")
+        logger.info("=" * 80)
+        
+        # Create new agent with memory and chat_ctx
+        tamil_agent = TamilAgent(
+            memory=self.memory,
+            chat_ctx=self.session.history
+        )
+        
+        # Perform the handoff
+        self.session.update_agent(tamil_agent)
+        
+        return "HANDOFF_TO_TAMIL"
+    
+    @function_tool
+    async def handoff_to_telugu(self, context: RunContext):
+        """Hand off to Telugu Agent.
+        Use when: Patient selects Telugu as their preferred language
+        """
+        logger.info("=" * 80)
+        logger.info("🇮🇳 HANDOFF: Orchestrator → Telugu Agent")
+        logger.info("=" * 80)
+        
+        # Create new agent with memory and chat_ctx
+        telugu_agent = TeluguAgent(
+            memory=self.memory,
+            chat_ctx=self.session.history
+        )
+        
+        # Perform the handoff
+        self.session.update_agent(telugu_agent)
+        
+        return "HANDOFF_TO_TELUGU"

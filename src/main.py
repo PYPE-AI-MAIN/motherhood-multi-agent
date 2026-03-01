@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 from livekit.agents import AgentServer, JobContext, cli
 from livekit.agents.voice import AgentSession
 from livekit.plugins import sarvam, elevenlabs, openai, silero
+# from livekit.plugins.google import TTS as GoogleTTS  # Temporarily commented
 
 from core.state import SessionState
 from core.memory import LivingMemory
@@ -64,6 +65,21 @@ def create_stt():
         raise ValueError(f"Unknown STT provider: {provider}")
 
 
+def create_stt_for_language(language_name: str):
+    """Create STT instance for specific language."""
+    stt_config = config.stt_config
+    provider = stt_config.get("provider", "sarvam")
+    
+    # Get language code from config
+    languages = stt_config.get("languages", {})
+    language_code = languages.get(language_name, "hi-IN")  # fallback to Hindi
+    
+    if provider == "sarvam":
+        return sarvam.STT(language=language_code)
+    else:
+        raise ValueError(f"Unknown STT provider: {provider}")
+
+
 def create_tts():
     """Create TTS instance from YAML config."""
     tts_config = config.tts_config
@@ -72,6 +88,36 @@ def create_tts():
 
     if provider == "elevenlabs":
         return elevenlabs.TTS(voice_id=voice_id)
+    elif provider == "google":
+        # return GoogleTTS(voice=voice_id)  # Temporarily commented
+        return elevenlabs.TTS(voice_id=voice_id)  # Fallback to ElevenLabs
+    elif provider == "sarvam":
+        return sarvam.TTS(voice_id=voice_id)
+    else:
+        raise ValueError(f"Unknown TTS provider: {provider}")
+
+
+def create_tts_for_language(language_name: str):
+    """Create TTS instance for specific language."""
+    tts_config = config.tts_config
+    languages = tts_config.get("languages", {})
+    
+    # Get language-specific config
+    lang_config = languages.get(language_name, {
+        "provider": "elevenlabs",
+        "voice_id": "h3vxoHEil3T93VGdTQQu"
+    })
+    
+    provider = lang_config.get("provider", "elevenlabs")
+    voice_id = lang_config.get("voice_id", "h3vxoHEil3T93VGdTQQu")
+    
+    if provider == "elevenlabs":
+        return elevenlabs.TTS(voice_id=voice_id)
+    elif provider == "google":
+        # return GoogleTTS(voice=voice_id)  # Temporarily commented
+        return elevenlabs.TTS(voice_id=voice_id)  # Fallback to ElevenLabs
+    elif provider == "sarvam":
+        return sarvam.TTS(voice_id=voice_id)
     else:
         raise ValueError(f"Unknown TTS provider: {provider}")
 
@@ -105,13 +151,9 @@ async def entrypoint(ctx: JobContext):
 
     # Create orchestrator (will create specialized agents on-demand during handoffs)
     logger.info("🔧 INITIALIZING ORCHESTRATOR...")
-    logger.info("")
-
     orchestrator = OrchestratorAgent(memory=memory)
     logger.info("   ✅ Orchestrator Agent (will create specialized agents on-demand)")
     logger.info("")
-    logger.info("✅ System Ready!")
-
     # Create AgentSession with plugins from YAML config
     stt_config = config.stt_config
     tts_config = config.tts_config
@@ -125,6 +167,7 @@ async def entrypoint(ctx: JobContext):
     logger.info(f"   • VAD: {config.settings.get('vad', {}).get('provider', 'silero')}")
     logger.info("=" * 80)
 
+    # Create session with orchestrator (which has its own STT/TTS)
     session = AgentSession(
         stt=create_stt(),
         llm=create_llm(),

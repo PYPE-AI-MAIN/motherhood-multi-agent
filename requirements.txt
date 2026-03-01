@@ -3,6 +3,7 @@ livekit-plugins-openai>=0.8.5
 livekit-plugins-deepgram>=0.8.1
 livekit-plugins-cartesia>=0.2.3
 livekit-plugins-silero>=0.8.0
+livekit-plugins-google
 pydantic>=2.5.0
 pydantic-settings>=2.1.0
 pyyaml>=6.0.1

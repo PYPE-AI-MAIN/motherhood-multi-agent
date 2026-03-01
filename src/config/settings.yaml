@@ -39,12 +39,36 @@ ai_agent:
 stt:
   provider: "sarvam"
   language: "hi-IN"
+  # Language-specific settings
+  languages:
+    english: "en-US"
+    hindi: "hi-IN"
+    kannada: "kn-IN"
+    tamil: "ta-IN"
+    telugu: "te-IN"
   # Additional Sarvam settings can be added here
 
 # Text-to-Speech Configuration
 tts:
   provider: "elevenlabs"
   voice_id: "h3vxoHEil3T93VGdTQQu"
+  # Language-specific TTS settings
+  languages:
+    english:
+      provider: "elevenlabs"
+      voice_id: "h3vxoHEil3T93VGdTQQu"
+    hindi:
+      provider: "elevenlabs"
+      voice_id: "h3vxoHEil3T93VGdTQQu"
+    kannada:
+      provider: "google"
+      voice_id: "kn-IN-Chirp3-HD-Aoede"
+    tamil:
+      provider: "google"
+      voice_id: "ta-IN-Chirp3-HD-Aoede"
+    telugu:
+      provider: "sarvam"
+      voice_id: "Anushka"
   # Alternate voices (for future use)
   voices:
     anjali: "h3vxoHEil3T93VGdTQQu"

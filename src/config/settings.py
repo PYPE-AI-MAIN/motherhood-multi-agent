@@ -7,6 +7,7 @@ This module provides backward compatibility while transitioning to YAML-based co
 
 from pydantic_settings import BaseSettings
 from config.config_loader import config as yaml_config
+from pathlib import Path
 
 
 class Settings(BaseSettings):
@@ -28,9 +29,9 @@ class Settings(BaseSettings):
     current_date: str = "2026-01-20"
 
     class Config:
-        env_file = ".env"
+        env_file = Path(__file__).parent.parent.parent / ".env"  # src/config/ -> src/ -> hospital_multiagent_workflow/
         env_file_encoding = "utf-8"
-        extra = "ignore"  # Allow extra env vars like deepgram_api_key, sarvam_api_key, etc.
+        extra = "ignore"
 
     # ========================================
     # YAML Config Proxies
