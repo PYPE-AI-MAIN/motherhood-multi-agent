@@ -39,9 +39,11 @@ ai_agent:
 stt:
   provider: "sarvam"
   language: "hi-IN"
+  model: "saaras:v3"
+  mode: "codemix"
   # Language-specific settings
   languages:
-    english: "en-US"
+    english: "en-IN"
     hindi: "hi-IN"
     kannada: "kn-IN"
     tamil: "ta-IN"
@@ -61,14 +63,17 @@ tts:
       provider: "elevenlabs"
       voice_id: "h3vxoHEil3T93VGdTQQu"
     kannada:
-      provider: "google"
-      voice_id: "kn-IN-Chirp3-HD-Aoede"
+      provider: "sarvam"
+      model: "bulbul:v3"
+      speaker: "roopa"
     tamil:
-      provider: "google"
-      voice_id: "ta-IN-Chirp3-HD-Aoede"
+      provider: "sarvam"
+      model: "bulbul:v3"
+      speaker: "priya"
     telugu:
       provider: "sarvam"
-      voice_id: "Anushka"
+      model: "bulbul:v3"
+      speaker: "pooja"
   # Alternate voices (for future use)
   voices:
     anjali: "h3vxoHEil3T93VGdTQQu"
@@ -158,3 +163,14 @@ api:
 logging:
   level: "INFO"
   format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# Saaras V3 Configuration
+saaras_v3:
+  model: "saaras:v3"
+  mode: "codemix"  # Options: transcribe, translate, verbatim, translit, codemix
+  # Available modes:
+  # - transcribe: Standard transcription (default)
+  # - translate: Translate to English
+  # - verbatim: Word-for-word transcription
+  # - translit: Transliterate to Latin script
+  # - codemix: Handle code-switched content

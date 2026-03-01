@@ -40,8 +40,9 @@ class OrchestratorAgent(Agent):
     4. Language agent then handles specialized routing
     """
 
-    def __init__(self, memory):
+    def __init__(self, memory, caller_number=None):
         self.memory = memory
+        self.caller_number = caller_number or "Unknown"
 
         # Load instructions from YAML config with variable substitution
         instructions = config.get_agent_prompt("orchestrator")
@@ -163,7 +164,7 @@ class OrchestratorAgent(Agent):
         Use when: Patient selects English as their preferred language
         """
         logger.info("=" * 80)
-        logger.info("🇬🇧 HANDOFF: Orchestrator → English Agent")
+        logger.info("🇬🇧 HANDOFF: Orchestrator → English Agent (SILENT)")
         logger.info("=" * 80)
         
         # Create new agent with memory and chat_ctx
@@ -172,7 +173,7 @@ class OrchestratorAgent(Agent):
             chat_ctx=self.session.history
         )
         
-        # Perform the handoff
+        # Perform silent handoff (no spoken message)
         self.session.update_agent(english_agent)
         
         return "HANDOFF_TO_ENGLISH"
@@ -189,10 +190,11 @@ class OrchestratorAgent(Agent):
         # Create new agent with memory and chat_ctx
         hindi_agent = HindiAgent(
             memory=self.memory,
-            chat_ctx=self.session.history
+            chat_ctx=self.session.history,
+            caller_number=self.caller_number
         )
         
-        # Perform the handoff
+        # Perform the handoff immediately (no spoken message)
         self.session.update_agent(hindi_agent)
         
         return "HANDOFF_TO_HINDI"
@@ -209,10 +211,11 @@ class OrchestratorAgent(Agent):
         # Create new agent with memory and chat_ctx
         kannada_agent = KannadaAgent(
             memory=self.memory,
-            chat_ctx=self.session.history
+            chat_ctx=self.session.history,
+            caller_number=self.caller_number
         )
         
-        # Perform the handoff
+        # Perform the handoff immediately (no spoken message)
         self.session.update_agent(kannada_agent)
         
         return "HANDOFF_TO_KANNADA"
@@ -229,10 +232,11 @@ class OrchestratorAgent(Agent):
         # Create new agent with memory and chat_ctx
         tamil_agent = TamilAgent(
             memory=self.memory,
-            chat_ctx=self.session.history
+            chat_ctx=self.session.history,
+            caller_number=self.caller_number
         )
         
-        # Perform the handoff
+        # Perform the handoff immediately (no spoken message)
         self.session.update_agent(tamil_agent)
         
         return "HANDOFF_TO_TAMIL"
@@ -249,10 +253,11 @@ class OrchestratorAgent(Agent):
         # Create new agent with memory and chat_ctx
         telugu_agent = TeluguAgent(
             memory=self.memory,
-            chat_ctx=self.session.history
+            chat_ctx=self.session.history,
+            caller_number=self.caller_number
         )
         
-        # Perform the handoff
+        # Perform the handoff immediately (no spoken message)
         self.session.update_agent(telugu_agent)
         
         return "HANDOFF_TO_TELUGU"

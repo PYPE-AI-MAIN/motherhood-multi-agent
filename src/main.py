@@ -9,12 +9,29 @@ Configuration is loaded from YAML files in config/
 """
 
 import logging
+import os
 from dotenv import load_dotenv
 
-from livekit.agents import AgentServer, JobContext, cli
+from livekit.agents import (
+    AgentServer, 
+    JobContext, 
+    cli, 
+    WorkerOptions,
+    AudioConfig,
+    BackgroundAudioPlayer,
+    BuiltinAudioClip
+)
 from livekit.agents.voice import AgentSession
 from livekit.plugins import sarvam, elevenlabs, openai, silero
 # from livekit.plugins.google import TTS as GoogleTTS  # Temporarily commented
+
+# Whispey Integration (Temporarily disabled due to compatibility issues)
+try:
+    from whispey import LivekitObserve
+    WHISPEY_AVAILABLE = False  # Temporarily disabled
+    print("⚠️ Whispey temporarily disabled due to compatibility issues")
+except ImportError:
+    WHISPEY_AVAILABLE = False
 
 from core.state import SessionState
 from core.memory import LivingMemory
@@ -37,6 +54,20 @@ logging.basicConfig(
 )
 logger = logging.getLogger("felix-hospital.main")
 
+# Initialize Whispey if available (Temporarily disabled)
+pype = None
+if WHISPEY_AVAILABLE:
+    try:
+        pype = LivekitObserve(
+            agent_id=os.getenv("WHISPEY_AGENT_ID", "motherhood-agent"),
+            apikey=os.getenv("WHISPEY_API_KEY"),
+            enable_otel=True
+        )
+        logger.info("✅ Whispey observation enabled")
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to initialize Whispey: {e}")
+        pype = None
+
 # Initialize server
 server = AgentServer()
 
@@ -58,12 +89,13 @@ def create_stt():
     stt_config = config.stt_config
     provider = stt_config.get("provider", "sarvam")
     language = stt_config.get("language", "hi-IN")
+    model = stt_config.get("model", "saaras:v3")
+    mode = stt_config.get("mode", "codemix")
 
     if provider == "sarvam":
-        return sarvam.STT(language=language)
+        return sarvam.STT(language=language, model=model, mode=mode)
     else:
         raise ValueError(f"Unknown STT provider: {provider}")
-
 
 def create_stt_for_language(language_name: str):
     """Create STT instance for specific language."""
@@ -134,7 +166,7 @@ def create_llm():
         raise ValueError(f"Unknown LLM provider: {provider}")
 
 
-@server.rtc_session()
+@server.rtc_session(agent_name="motherhood-agent")
 async def entrypoint(ctx: JobContext):
     """Main entrypoint - multi-agent orchestrator architecture"""
 
@@ -149,9 +181,15 @@ async def entrypoint(ctx: JobContext):
     session_state = SessionState()
     memory = LivingMemory(session_state)
 
+    # Extract caller number from room metadata
+    caller_number = "Unknown"
+    if hasattr(ctx.room, 'metadata') and ctx.room.metadata:
+        caller_number = ctx.room.metadata.get('caller_number', 'Unknown')
+    logger.info(f"📞 Caller Number: {caller_number}")
+    
     # Create orchestrator (will create specialized agents on-demand during handoffs)
     logger.info("🔧 INITIALIZING ORCHESTRATOR...")
-    orchestrator = OrchestratorAgent(memory=memory)
+    orchestrator = OrchestratorAgent(memory=memory, caller_number=caller_number)
     logger.info("   ✅ Orchestrator Agent (will create specialized agents on-demand)")
     logger.info("")
     # Create AgentSession with plugins from YAML config
@@ -165,6 +203,8 @@ async def entrypoint(ctx: JobContext):
     logger.info(f"   • LLM: {llm_config.get('provider')} ({llm_config.get('model')})")
     logger.info(f"   • TTS: {tts_config.get('provider')} (voice: {tts_config.get('voice_id')[:8]}...)")
     logger.info(f"   • VAD: {config.settings.get('vad', {}).get('provider', 'silero')}")
+    logger.info(f"   • Background Audio: LiveKit BackgroundAudioPlayer")
+    logger.info(f"   • Sounds: Office Ambience + Keyboard Typing")
     logger.info("=" * 80)
 
     # Create session with orchestrator (which has its own STT/TTS)
@@ -174,6 +214,31 @@ async def entrypoint(ctx: JobContext):
         tts=create_tts(),
         vad=ctx.proc.userdata["vad"],
     )
+
+    # Start Whispey observation if available
+    session_id = None
+    if pype:
+        try:
+            # Extract caller number for Whispey tracking
+            caller_number = "Unknown"
+            if hasattr(ctx.room, 'metadata') and ctx.room.metadata:
+                caller_number = ctx.room.metadata.get('caller_number', 'Unknown')
+            
+            session_id = pype.start_session(session, phone_number=caller_number)
+            logger.info(f"📊 Whispey session started: {session_id}")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to start Whispey session: {e}")
+
+    # Setup Whispey shutdown callback
+    async def whispey_shutdown():
+        if pype and session_id:
+            try:
+                await pype.export(session_id)
+                logger.info("📊 Whispey session exported")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to export Whispey session: {e}")
+
+    ctx.add_shutdown_callback(whispey_shutdown)
 
     logger.info("=" * 80)
     logger.info("🚀 STARTING SESSION WITH ORCHESTRATOR")
@@ -186,6 +251,34 @@ async def entrypoint(ctx: JobContext):
         agent=orchestrator,  # Start with orchestrator!
         room=ctx.room,
     )
+    
+    # Setup LiveKit BackgroundAudioPlayer for ambient sounds
+    background_audio = BackgroundAudioPlayer(
+        # Play office ambience sound looping in the background
+        ambient_sound=AudioConfig(
+            source=BuiltinAudioClip.OFFICE_AMBIENCE, 
+            volume=0.6  # Moderate volume for phone calls
+        ),
+        # Play keyboard typing sound when the agent is thinking
+        thinking_sound=[
+            AudioConfig(
+                source=BuiltinAudioClip.KEYBOARD_TYPING, 
+                volume=0.4,  # Lower volume for typing
+                probability=0.8  # 80% chance to play
+            ),
+            AudioConfig(
+                source=BuiltinAudioClip.KEYBOARD_TYPING2, 
+                volume=0.3,  # Even lower for second typing sound
+                probability=0.6  # 60% chance to play
+            ),
+        ],
+    )
+    
+    # Start background audio
+    await background_audio.start(room=ctx.room, agent_session=session)
+    logger.info("🔊 LiveKit BackgroundAudioPlayer started")
+    logger.info("   🏢 Office ambience: ON (volume: 0.6)")
+    logger.info("   ⌨️ Keyboard typing: ON (volume: 0.4/0.3)")
 
     logger.info("=" * 80)
     logger.info("✅ SESSION COMPLETED")
