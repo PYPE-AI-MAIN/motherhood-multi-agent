@@ -1,19 +1,39 @@
-# IMPORTANT: Python 3.10+ REQUIRED for current LiveKit versions
+# Hospital Multi-Agent Workflow System Requirements
+# Python 3.10+ REQUIRED for current LiveKit versions
 # For Python 3.9, you need to upgrade to Python 3.10+ or use older versions
 # Current setup requires Python 3.10+ due to TypeAlias dependency
 
+# Core LiveKit Dependencies
 livekit-agents>=1.3.10
 livekit-plugins-openai>=0.8.5
 livekit-plugins-deepgram>=0.8.1
 livekit-plugins-cartesia>=0.2.3
 livekit-plugins-silero>=0.8.0
 livekit-plugins-google
+livekit-plugins-sarvam
+livekit-plugins-elevenlabs
+
+# Data Validation and Configuration
 pydantic>=2.5.0
 pydantic-settings>=2.1.0
 pyyaml>=6.0.1
+
+# Environment and Utilities
 python-dotenv>=1.0.0
 structlog>=24.1.0
-livekit-plugins-sarvam
-livekit-plugins-elevenlabs
-# Whispey requires Python 3.10+
-whispey
+
+# HTTP Client for API calls
+aiohttp>=3.8.0
+
+# Optional: Whispey Integration (requires Python 3.10+)
+# whispey  # Temporarily disabled due to compatibility issues
+
+# Development and Testing (uncomment for development)
+# pytest>=7.0.0
+# pytest-asyncio>=0.21.0
+# black>=23.0.0
+# flake8>=6.0.0
+
+# Additional utilities that might be needed
+# typing-extensions>=4.5.0  # For older Python versions
+# async-timeout>=4.0.0   # For timeout handling
