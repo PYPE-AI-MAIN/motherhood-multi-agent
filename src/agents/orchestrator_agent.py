@@ -164,8 +164,11 @@ class OrchestratorAgent(Agent):
         Use when: Patient selects English as their preferred language
         """
         logger.info("=" * 80)
-        logger.info("🇬🇧 HANDOFF: Orchestrator → English Agent (SILENT)")
+        logger.info("🇬🇧 HANDOFF: Orchestrator → English Agent")
         logger.info("=" * 80)
+        
+        # Say only the required message
+        await self.session.say("Okay please wait a minute, let me transfer your call to someone who can help")
         
         # Create new agent with memory and chat_ctx
         english_agent = EnglishAgent(
@@ -173,7 +176,7 @@ class OrchestratorAgent(Agent):
             chat_ctx=self.session.history
         )
         
-        # Perform silent handoff (no spoken message)
+        # Perform the handoff
         self.session.update_agent(english_agent)
         
         return "HANDOFF_TO_ENGLISH"
@@ -187,6 +190,9 @@ class OrchestratorAgent(Agent):
         logger.info("🇮🇳 HANDOFF: Orchestrator → Hindi Agent")
         logger.info("=" * 80)
         
+        # Say only the required message
+        await self.session.say("Okay please wait a minute, let me transfer your call to someone who can help")
+        
         # Create new agent with memory and chat_ctx
         hindi_agent = HindiAgent(
             memory=self.memory,
@@ -194,7 +200,7 @@ class OrchestratorAgent(Agent):
             caller_number=self.caller_number
         )
         
-        # Perform the handoff immediately (no spoken message)
+        # Perform the handoff
         self.session.update_agent(hindi_agent)
         
         return "HANDOFF_TO_HINDI"
@@ -208,6 +214,9 @@ class OrchestratorAgent(Agent):
         logger.info("🇮🇳 HANDOFF: Orchestrator → Kannada Agent")
         logger.info("=" * 80)
         
+        # Say only the required message
+        await self.session.say("Okay please wait a minute, let me transfer your call to someone who can help")
+        
         # Create new agent with memory and chat_ctx
         kannada_agent = KannadaAgent(
             memory=self.memory,
@@ -215,7 +224,7 @@ class OrchestratorAgent(Agent):
             caller_number=self.caller_number
         )
         
-        # Perform the handoff immediately (no spoken message)
+        # Perform the handoff
         self.session.update_agent(kannada_agent)
         
         return "HANDOFF_TO_KANNADA"
@@ -229,6 +238,9 @@ class OrchestratorAgent(Agent):
         logger.info("🇮🇳 HANDOFF: Orchestrator → Tamil Agent")
         logger.info("=" * 80)
         
+        # Say only the required message
+        await self.session.say("Okay please wait a minute, let me transfer your call to someone who can help")
+        
         # Create new agent with memory and chat_ctx
         tamil_agent = TamilAgent(
             memory=self.memory,
@@ -236,7 +248,7 @@ class OrchestratorAgent(Agent):
             caller_number=self.caller_number
         )
         
-        # Perform the handoff immediately (no spoken message)
+        # Perform the handoff
         self.session.update_agent(tamil_agent)
         
         return "HANDOFF_TO_TAMIL"
@@ -250,6 +262,9 @@ class OrchestratorAgent(Agent):
         logger.info("🇮🇳 HANDOFF: Orchestrator → Telugu Agent")
         logger.info("=" * 80)
         
+        # Say only the required message
+        await self.session.say("Okay please wait a minute, let me transfer your call to someone who can help")
+        
         # Create new agent with memory and chat_ctx
         telugu_agent = TeluguAgent(
             memory=self.memory,
@@ -257,7 +272,7 @@ class OrchestratorAgent(Agent):
             caller_number=self.caller_number
         )
         
-        # Perform the handoff immediately (no spoken message)
+        # Perform the handoff
         self.session.update_agent(telugu_agent)
         
         return "HANDOFF_TO_TELUGU"

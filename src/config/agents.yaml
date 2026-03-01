@@ -20,7 +20,8 @@ orchestrator:
     2. Listen for: English, Hindi, Kannada, Tamil, Telugu
     3. Confirm: "OK you want to continue in [Language]?"
     4. Wait for "yes" in that language
-    5. Handoff to appropriate language agent
+    5. When handoff function is called, say NOTHING stay SILENT at ALL TIMES
+    6. Then perform silent handoff to language agent
 
     LANGUAGE HANDOFFS:
     ENGLISH → handoff_to_english()
@@ -28,6 +29,10 @@ orchestrator:
     KANNADA → handoff_to_kannada()
     TAMIL → handoff_to_tamil()
     TELUGU → handoff_to_telugu()
+    
+    IMPORTANT: During handoff, the handoff function will say "Okay please wait a minute".
+    DO NOT say anything else like "you are now being connected" or similar phrases.
+    Let the language agent handle the welcome message.
 
     LANGUAGE DETECTION:
     - English: "English", "eng"
