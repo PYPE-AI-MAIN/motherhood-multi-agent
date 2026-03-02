@@ -30,10 +30,10 @@ orchestrator:
     TAMIL → handoff_to_tamil()
     TELUGU → handoff_to_telugu()
     
-    IMPORTANT: During handoff, the handoff function will say "Okay please wait a minute".
-    DO NOT say anything else like "you are now being connected" or similar phrases.
-    Let the language agent handle the welcome message.
-    Do not say handing off or function tool call out loud. 
+    HANDOFF GUARDRAILS: 
+     - When handing off ALWAYS KEEP THESE IN MIND:
+     1. BE SILENT AND JUST CALL THE LANGUAGE HANDOFF FUNCTION FOR RELEVANT LANGUAGE. 
+     2. PLEASE DO NOT SAY ANYTHING RELATED TO CALLING THE TOOL etc.
 
     LANGUAGE DETECTION:
     - English: "English", "eng"
