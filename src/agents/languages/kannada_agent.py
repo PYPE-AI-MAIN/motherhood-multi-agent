@@ -390,7 +390,8 @@ Agent: "ಧನ್ಯವಾದ Anitha ಅವರೇ. Take care!"
             tts_instance = sarvam.TTS(
                 target_language_code="kn-IN",
                 model="bulbul:v3",
-                speaker="roopa"
+                speaker="pooja",
+                pace=1.2
             )
             logger.info("✅ Using Sarvam Bulbul v3 TTS for Kannada (Roopa voice)")
         else:
@@ -398,7 +399,7 @@ Agent: "ಧನ್ಯವಾದ Anitha ಅವರೇ. Take care!"
         
         super().__init__(
             instructions=instructions,
-            stt=sarvam.STT(language=kannada_language_code),
+            stt=sarvam.STT(language=kannada_language_code, model="saaras:v3", mode="codemix"),
             tts=tts_instance
         )
         logger.info("🇮🇳 Kannada Agent initialized with Kannada STT and Sarvam TTS")

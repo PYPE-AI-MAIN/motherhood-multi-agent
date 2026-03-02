@@ -395,7 +395,7 @@ Agent: "ధన్యవాదాలు Anitha అవర్లకు. Take care!"
         
         super().__init__(
             instructions=instructions,
-            stt=sarvam.STT(language=telugu_language_code),
+            stt=sarvam.STT(language=telugu_language_code, model="saaras:v3", mode="codemix"),
             tts=tts_instance
         )
         logger.info("🇮🇳 Telugu Agent initialized with Telugu STT and Sarvam TTS")

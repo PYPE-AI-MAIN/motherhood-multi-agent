@@ -387,15 +387,15 @@ Agent: "நன்றி, Anitha அவர்களே. Take care!"
             tts_instance = sarvam.TTS(
                 target_language_code="ta-IN",
                 model="bulbul:v3",
-                speaker="priya"
+                speaker="pooja"
             )
-            logger.info("✅ Using Sarvam Bulbul v3 TTS for Tamil (Priya voice)")
+            logger.info("✅ Using Sarvam Bulbul v3 TTS for Tamil (Pooja voice)")
         else:
             tts_instance = elevenlabs.TTS(voice_id="h3vxoHEil3T93VGdTQQu")  # Fallback to ElevenLabs
         
         super().__init__(
             instructions=instructions,
-            stt=sarvam.STT(language=tamil_language_code),
+            stt=sarvam.STT(language=tamil_language_code, model="saaras:v3", mode="codemix"),
             tts=tts_instance
         )
         logger.info("🇮🇳 Tamil Agent initialized with Tamil STT and Sarvam TTS")

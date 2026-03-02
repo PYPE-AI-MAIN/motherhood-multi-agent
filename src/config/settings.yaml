@@ -66,14 +66,20 @@ tts:
       provider: "sarvam"
       model: "bulbul:v3"
       speaker: "roopa"
+      pace: 1.5
+      temperature: 0.8
     tamil:
       provider: "sarvam"
       model: "bulbul:v3"
       speaker: "priya"
+      pace: 1.25
+      temperature: 0.8
     telugu:
       provider: "sarvam"
       model: "bulbul:v3"
       speaker: "pooja"
+      pace: 1.25
+      temperature: 0.8
   # Alternate voices (for future use)
   voices:
     anjali: "h3vxoHEil3T93VGdTQQu"
@@ -85,8 +91,8 @@ llm:
   model: "gpt-4.1"
   # Fallback model
   fallback_model: "gpt-4o-mini"
-  temperature: 0.7
-  max_tokens: 1024
+  temperature: 0.07
+  max_tokens: 100000
 
 # Voice Activity Detection
 vad:
